@@ -47,16 +47,16 @@ class NodeMappingAnalyzer:
         full_path = Path(file_path) / filename
         
         if not full_path.exists():
-            raise FileNotFoundError(f"Файл {full_path} не найден")
+            return None
         
         if not full_path.is_file():
-            raise FileNotFoundError(f"{full_path} не является файлом")
+            return None
         
         try:
             with open(full_path, 'r', encoding='utf-8') as file:
                 data = yaml.safe_load(file)
         except yaml.YAMLError as e:
-            raise yaml.YAMLError(f"Ошибка парсинга YAML файла: {e}")
+            return None
         
         # Извлекаем значения comfyui:custom_nodes
         if data and 'comfyui' in data and 'custom_nodes' in data['comfyui']:
