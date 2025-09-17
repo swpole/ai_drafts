@@ -407,6 +407,8 @@ class NodeMappingAnalyzer:
         
         all_nodes = self.get_all_subdirectories(all_paths)
         all_nodes.append(comfyui_path)
+        extras_path=comfyui_path / "comfy_extras"
+        all_nodes.append(extras_path)
         return self.find_node_class_mappings_with_imports(all_nodes)
 
 

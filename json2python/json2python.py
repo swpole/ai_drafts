@@ -295,8 +295,8 @@ class ComfyUIJsonToPythonConverter:
 
 def main():
 
-    input_json = "simple_image.json"
-    output_py = "simple_image.py"
+    input_json = "image_qwen_image.json"
+    output_py = "image_qwen_image.py"
     
     # Создаем конвертер и обрабатываем файл
     converter = ComfyUIJsonToPythonConverter()

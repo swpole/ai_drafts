@@ -1,0 +1,64 @@
+{
+  "3": {
+    "inputs": {
+      "filename_prefix": "audio/VibeVoice",
+      "audioUI": "",
+      "audio": [
+        "11",
+        0
+      ]
+    },
+    "class_type": "SaveAudio",
+    "_meta": {
+      "title": "SaveAudio"
+    }
+  },
+  "4": {
+    "inputs": {
+      "audio": "1.wav",
+      "audioUI": ""
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "LoadAudio"
+    }
+  },
+  "8": {
+    "inputs": {
+      "audio": "5.wav",
+      "audioUI": ""
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "LoadAudio"
+    }
+  },
+  "11": {
+    "inputs": {
+      "model_name": "VibeVoice-Large",
+      "text": "Speaker 1: Не могу поверить, что ты снова это сделал. Я ждал два часа. Два часа! Ни одного звонка, ни одного сообщения. Ты хоть представляешь, как это было неловко — просто сидеть там в одиночестве?\nSpeaker 2: Слушай, я знаю, извини, ладно? Работа была настоящим кошмаром. Мой начальник в последнюю минуту поставил мне критически важный дедлайн. У меня даже секунды не было, чтобы вздохнуть, не говоря уже о том, чтобы проверить телефон.\nSpeaker 1: Кошмар? Это же оправдание ты использовал в прошлый раз. Я начинаю думать, что тебе просто всё равно. Легче сказать «работа была сумасшедшей», чем признать, что я больше не в приоритете для тебя.",
+      "quantize_llm_4bit": false,
+      "attention_mode": "eager",
+      "cfg_scale": 1.3,
+      "inference_steps": 10,
+      "seed": 1,
+      "do_sample": true,
+      "temperature": 0.95,
+      "top_p": 0.95,
+      "top_k": 0,
+      "force_offload": false,
+      "speaker_1_voice": [
+        "4",
+        0
+      ],
+      "speaker_2_voice": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "VibeVoiceTTS",
+    "_meta": {
+      "title": "VibeVoice TTS"
+    }
+  }
+}
