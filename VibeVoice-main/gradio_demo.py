@@ -1202,9 +1202,7 @@ def parse_args():
 def main():
     """Main function to run the demo."""
     args = parse_args()
-    # model_path = "vibevoice/VibeVoice-7B"
     model_path = "aoi-ot/VibeVoice-Large"
-    # model_path = "microsoft/VibeVoice-1.5B"
     set_seed(42)  # Set a fixed seed for reproducibility
 
     print("🎙️ Initializing VibeVoice Demo with Streaming Support...")
