@@ -175,7 +175,7 @@ class SpeechHandler:
 
 if __name__ == "__main__":
     # Тестирование класса SpeechHandler
-    speech_handler = SpeechHandler("large")
+    speech_handler = SpeechHandler("tiny")
     
     print("=== Тестирование SpeechHandler ===")
     print(f"Доступные модели: {speech_handler.get_available_models()}")

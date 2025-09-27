@@ -139,6 +139,9 @@ class AudioTextInput:
                 inputs=[text_transcribed, text_summary],
                 outputs=[text_summary]
             )
+
+        return self.interface
+        
     
     def _handle_transcription(self, audio_path: str, method: str) -> str:
         """Обработка преобразования аудио в текст"""

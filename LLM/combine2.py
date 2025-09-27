@@ -1,9 +1,13 @@
 # simple_pipeline.py
 import gradio as gr
 from SpeechHandler import SpeechHandler
+from speech_to_text_app import SpeechToTextApp
+from audio_text_input import AudioTextInput
 from LLMHandler import LLMHandler
 
-speech = SpeechHandler("base")
+speech_whisper = SpeechHandler("tiny")
+speech_google = SpeechToTextApp()
+speech_combo = AudioTextInput()
 llm = LLMHandler()
 text_shared = "Hi from main!"
 def track_tab_change(tab_index):
@@ -21,13 +25,21 @@ def main():
         
         # Создаем TabbedInterface внутри основного блока
         with gr.Tabs() as tabs:
-            with gr.TabItem("🎙️ Распознавание речи (SpeechHandler)", id=0) as tab1:
-                speech_interface = speech.create_interface()
-                speech_interface.render()
+            with gr.TabItem("🎙️ Распознавание речи (Whisper)", id=0) as tab1:
+                speech_whisper_interface = speech_whisper.create_interface()
+                #speech_whisper_interface.render()
+
+            with gr.TabItem("🎙️ Распознавание речи (Google)", id=1) as tab2:
+                speech_google_interface = speech_google.create_interface()
+                #speech_google_interface.render()
+
+            with gr.TabItem("🎙️ Распознавание речи (Google+Wisper)", id=2) as tab3:
+                speech_combo_interface = speech_combo.create_interface()
+                #speech_combo_interface.render()
             
-            with gr.TabItem("🤖 AI-ассистент (LLMHandler)", id=1) as tab2:
+            with gr.TabItem("🤖 AI-ассистент (LLMHandler)", id=3) as tab4:
                 llm_interface = llm.create_interface()
-                llm_interface.render()
+                #llm_interface.render()
         
         # Отслеживаем изменение вкладок
         tabs.select(
