@@ -153,7 +153,7 @@ class LLMHandler:
         """
         Создает Gradio интерфейс для работы с LLM
         """
-        with gr.Blocks(title="LLM Interface", theme="soft") as interface:
+        with gr.Blocks(title="LLM Interface") as interface:
             gr.Markdown("# 🤖 Интерфейс для работы с локальными LLM моделями")
             
             # Проверка статуса Ollama
@@ -178,7 +178,8 @@ class LLMHandler:
                 label="Системный промпт (роль модели)",
                 placeholder="Например: Ты - опытный политолог. Отвечай профессионально и аргументированно...",
                 lines=3,
-                value="Ты - полезный AI ассистент. Отвечай точно и информативно."
+                value="Ты - полезный AI ассистент. Отвечай точно и информативно.",
+                show_copy_button=True
             )
 
 
@@ -188,7 +189,8 @@ class LLMHandler:
                 user_prompt = user_prompt_stt.render(
                     label="Задание для LLM",
                     placeholder="Введите ваш запрос здесь...",
-                    lines=5
+                    lines=5,
+                    show_copy_button=True
                 )
 
 
@@ -220,7 +222,7 @@ class LLMHandler:
             response_output = response_output_stt.render(
                 label="Ответ LLM", 
                 lines=10, 
-                interactive=False,
+                interactive=True,
                 show_copy_button=True
             )
 
