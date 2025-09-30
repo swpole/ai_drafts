@@ -17,6 +17,7 @@ class ImageGeneratorSimpleSTT:
         self.checkpoint_files = self.get_checkpoint_files()
         # Автоматическое определение пути к папке output
         self.output_dir = self.get_output_directory()
+        pass
 
     def __init__(self):
         self.checkpoint_files = self.get_checkpoint_files()
@@ -138,7 +139,7 @@ class ImageGeneratorSimpleSTT:
                     batch_size = gr.Number(value=1, label="Batch Size", precision=0, minimum=1, maximum=8)
                     
                     positive_prompt_stt = TextboxWithSTT()
-                    positive_prompt = positive_prompt_stt.render(
+                    self.positive_prompt = positive_prompt_stt.render(
                         label="Positive Prompt", 
                         lines=3, 
                         interactive=True,
@@ -222,7 +223,7 @@ class ImageGeneratorSimpleSTT:
                 fn=self.generate_image,
                 inputs=[
                     ckpt_name, width, height, batch_size,
-                    positive_prompt, negative_prompt,
+                    self.positive_prompt, negative_prompt,
                     seed, steps, cfg, sampler_name, scheduler, denoise,
                     filename_prefix
                 ],
@@ -240,12 +241,12 @@ class ImageGeneratorSimpleSTT:
             - **Advanced Settings**: Дополнительные параметры генерации
             """)
         
-        return interface, [self.output_dir]
+        return interface, [self.output_dir], self.positive_prompt
 
 def main():
     """Запуск Gradio интерфейса"""
     generator = ImageGeneratorSimpleSTT()
-    interface, allowed_paths = generator.create_interface()
+    interface, allowed_paths, pp = generator.create_interface()
     interface.launch(
             #share=True, 
             server_name="127.0.0.1",
