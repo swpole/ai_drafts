@@ -1,5 +1,6 @@
 import gradio as gr
 import ollama
+import subprocess
 
 class LLMInterface:
     def __init__(
@@ -28,11 +29,13 @@ class LLMInterface:
     def get_models(self):
         """Возвращает список установленных моделей Ollama."""
         try:
+            # Это запустит Ollama если не была запущена
+            subprocess.run(["ollama", "list"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             models_info = ollama.list()
             return [m["model"] for m in models_info["models"]]
         except Exception as e:
-            print("Ошибка при получении списка моделей:", e)
-            return None
+            err = f"Ошибка при получении списка моделей:{e} Возможно ollama не запущена. Запустите 'ollama list' в терминале."
+            return [err]
 
     def generate(self, model_name, prompt, input_text):
         """Запускает ollama с выбранной моделью."""

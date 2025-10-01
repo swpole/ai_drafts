@@ -1,15 +1,18 @@
 import gradio as gr
 import ollama
+import subprocess
 
 
 def get_models():
     """Возвращает список установленных моделей Ollama."""
     try:
+        # Это запустит Ollama если не была запущена
+        subprocess.run(["ollama", "list"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         models_info = ollama.list()
         return [m["model"] for m in models_info["models"]]
     except Exception as e:
         print("Ошибка при получении списка моделей:", e)
-        return ["llama2"]  # запасной вариант
+        return [e]  # Возвращаем сообщение об ошибке
 
 
 def generate_summary(model_name, prompt, article_text):
