@@ -1,29 +1,29 @@
 import gradio as gr
-from llm_interface import LLMInterface
-
-class SimpleText:
-    def __init__(self):
-        # Перенесем создание текстового поля в create_interface
-        pass
-        
-    def create_interface(self):
-        # Теперь создаем и возвращаем текстовое поле
-        self.text_box = gr.Textbox(
-            label="Enter some text", 
-            placeholder="Type here...", 
-            lines=2
-        )
-        return self.text_box
+from illustration_prompt_generator import IllustrationPromptGenerator
+from image_generator_simple_stt import ImageGeneratorSimpleSTT
 
 class Test:
     def create_interface(self):
         with gr.Blocks(theme=gr.themes.Soft(), title="Test Interface") as interface:
-            
-            t2_component = SimpleText()
-            t2_textbox = t2_component.create_interface()
 
-            llm_interface = LLMInterface()
-            llm_interface.build_interface()
+            title_md = "# 🚀 Test Interface"
+            gr.Markdown(title_md)
+
+            illustration_prompt_generator = IllustrationPromptGenerator()
+            illustration_prompt_generator.create_interface()
+            generated_prompt = illustration_prompt_generator.scene_prompt_box
+            
+            gr.HTML("""<div style='height: 2px; background: linear-gradient(90deg, transparent, #666, transparent); margin: 40px 0;'></div>""")
+            
+            image_generator = ImageGeneratorSimpleSTT()        
+            image_generator.create_interface()
+            pos_prompt = image_generator.positive_prompt
+
+            generated_prompt.change(
+                fn=lambda x: x,  # Просто передаем значение дальше
+                inputs=generated_prompt,
+                outputs=pos_prompt
+            )
             
             
         return interface

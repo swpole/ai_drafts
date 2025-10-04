@@ -86,6 +86,47 @@ class IllustrationPromptGenerator:
 - Какая хорошая песенка, колобок! Славная песенка, еще бы послушала! Сядь-ка на мой язычок да пропой в последний разок, - сказала лиса и высунула свой язык.
 Колобок сдуру прыг ей на язык, а лиса -ам его! - и съела.
 """
+
+        self.input_text = """Resume: The Big Bang is a physical theory that describes how the universe expanded from an initial state of high density and temperature. 
+Various cosmological models based on the Big Bang concept explain a broad range of phenomena, including the abundance of light elements, the cosmic microwave background (CMB) radiation, and large-scale structure. 
+The uniformity of the universe is explained through cosmic inflation, which is considered the age of the universe. 
+Inspired by the laws of physics, models of the Big Bang describe an extraordinarily hot and dense primordial universe. 
+Physics lacks a widely accpeted theory that can model the earliest conditions of the Big Bang, but evidence suggests it may occur in the era of matter-antimatter asymmetry, dark matter, and the origin of dark energy."""
+
+        self.output_prompts = """Cinematic Prompt 1 (text): **Scene 1**
+- Original text: The Big Bang is a physical theory that describes how the universe expanded from an initial state of high density and temperature. 
+- Visual prompt with elements:
+  • Frame composition (close-up, wide shot, etc.)
+  • Lighting and atmosphere
+  • Camera angle and perspective
+  • Artistic style: realism
+  • Emotional impact of the scene
+
+Cinematic Prompt 2 (text): **Scene 2**
+- Original text: The Big Bang is a physical theory that describes how the universe expanded from an initial state of high density and temperature. 
+- Visual prompt with elements:
+  • Frame composition (close-up, wide shot, etc.)
+  • Lighting and atmosphere
+  • Camera angle and perspective
+  • Artistic style: realism
+  • Emotional impact of the scene
+
+Response format:
+1. Take a break from the original text and select another text to prompt for visual description. 2. Choose a visual prompt based on the new text, and create a description ready for image generation. 3. Implement the cinematic prompts into the generated image.
+"""
+        
+        self.scenes = ["Scene 1", "Scene 2", "Scene 3"]
+
+        self.prompts = ["""  • Frame composition (close-up, wide shot, etc.)
+  • Lighting and atmosphere
+  • Camera angle and perspective
+  • Artistic style: realism
+  • Emotional impact of the scene""", """  • Frame composition (close-up, wide shot, etc.)
+  • Lighting and atmosphere
+  • Camera angle and perspective
+  • Artistic style: realism
+  • Emotional impact of the scene"""]
+
         self.base_prompts = {
             "Детализированный": """Ты — эксперт по визуализации текста и созданию иллюстрационных промптов.
 Твоя задача — превратить длинный текст в серию промптов для генерации изображений.
@@ -385,10 +426,11 @@ The result should be a list of prompts for illustration generation that can be f
                 lines=5,
                 max_lines=5, 
                 interactive=True, 
-                show_copy_button=True
+                show_copy_button=True,
+                value=self.output_prompts
             )
             
-            scene_dropdown = gr.Dropdown(choices=[], label="Выберите сцену")
+            scene_dropdown = gr.Dropdown(choices=self.scenes, label="Выберите сцену")
             
             self.scene_prompt_box = gr.Textbox(
                 label="Промпт выбранной сцены", 
