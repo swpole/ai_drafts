@@ -5,6 +5,9 @@ import numpy as np
 import tempfile
 import wave
 import uuid
+import torch
+import whisper                       # OpenAI Whisper
+from faster_whisper import WhisperModel  # Faster-Whisper
 from typing import Union, Tuple, Optional
 
 
@@ -16,15 +19,76 @@ class TextboxWithSTTPro:
 
     def __init__(self, **textbox_kwargs):
         self.recognizer = sr.Recognizer()
-        # уникальный elem_id для textarea (чтобы можно было создать несколько экземпляров)
+
+        # Кэш моделей, чтобы не грузить заново
+        self.whisper_models = {}
+        self.faster_whisper_models = {}
+
+        # Автовыбор устройства для Faster-Whisper
+        if torch.cuda.is_available():
+            self.fw_device = "cuda"
+            # пробуем float16, если не получится → fall back на float32
+            try:
+                self.fw_compute_type="float16"
+                self.faster_whisper_model = WhisperModel(
+                    "base", device=self.fw_device, compute_type=self.fw_compute_type
+                )
+                print("[INFO] Faster-Whisper → GPU float16")
+            except ValueError:
+                self.fw_compute_type="float32"
+                self.faster_whisper_model = WhisperModel(
+                    "base", device=self.fw_device, compute_type=self.fw_compute_type
+                )
+                print("[INFO] Faster-Whisper → GPU float32")
+        else:
+            self.fw_device = "cpu"
+            self.fw_compute_type="int8"
+            self.faster_whisper_model = WhisperModel(
+                "base", device=self.fw_device, compute_type=self.fw_compute_type
+            )
+            print("[INFO] Faster-Whisper → CPU int8")
+
         self.elem_id = f"stt_textbox_{uuid.uuid4().hex[:8]}"
         self.textbox: Optional[gr.Textbox] = None
         self.render(**textbox_kwargs)
+
+    def _save_temp_wav(self, sr_rate, y) -> str:
+        """Сохраняет np.ndarray в temp wav и возвращает путь."""
+        if getattr(y, "ndim", 1) > 1:
+            y = y.mean(axis=1)
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        with wave.open(tmp.name, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(sr_rate)
+            wf.writeframes((y * 32767).astype(np.int16).tobytes())
+        return tmp.name
+    
+    def get_whisper_model(self, model_size: str):
+        """Загружает и кэширует openai/whisper модель"""
+        if model_size not in self.whisper_models:
+            print(f"[INFO] Загружаю Whisper ({model_size})...")
+            self.whisper_models[model_size] = whisper.load_model(model_size)
+        return self.whisper_models[model_size]
+
+    def get_faster_whisper_model(self, model_size: str):
+        """Загружает и кэширует faster-whisper модель"""
+        if model_size not in self.faster_whisper_models:
+            print(f"[INFO] Загружаю Faster-Whisper ({model_size}) на {self.fw_device}...")
+            try:
+                model = WhisperModel(model_size, device=self.fw_device, compute_type=self.fw_compute_type)
+            except ValueError:
+                # fallback если float16 не поддерживается
+                model = WhisperModel(model_size, device=self.fw_device, compute_type="float32")
+            self.faster_whisper_models[model_size] = model
+        return self.faster_whisper_models[model_size]    
 
     def transcribe_audio(
         self,
         audio: Optional[Union[str, Tuple[int, np.ndarray]]],
         engine: str,
+        whisper_model_size: str,
+        faster_whisper_model_size: str,
         google_cloud_key: str,
         houndify_client_id: str,
         houndify_client_key: str,
@@ -37,25 +101,30 @@ class TextboxWithSTTPro:
             return "Аудио не предоставлено"
 
         try:
-            # Если передан путь к файлу
+            # Whisper/OpenAI
+            if engine == "Whisper":
+                model = self.get_whisper_model(whisper_model_size)
+                file_path = audio if isinstance(audio, str) else self._save_temp_wav(*audio)
+                result = model.transcribe(file_path, language="ru")
+                return result["text"].strip()
+
+            # Faster-Whisper
+            if engine == "Faster-Whisper":
+                model = self.get_faster_whisper_model(faster_whisper_model_size)
+                file_path = audio if isinstance(audio, str) else self._save_temp_wav(*audio)
+                segments, _ = model.transcribe(file_path, language="ru")
+                return " ".join([seg.text for seg in segments]).strip()
+
+            # Остальные движки через speech_recognition
             if isinstance(audio, str):
                 with sr.AudioFile(audio) as source:
                     audio_data = self.recognizer.record(source)
             else:
                 sr_rate, y = audio
-                if getattr(y, "ndim", 1) > 1:
-                    y = y.mean(axis=1)
-                # сохраняем временно в wav
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                    with wave.open(tmp.name, "wb") as wf:
-                        wf.setnchannels(1)
-                        wf.setsampwidth(2)
-                        wf.setframerate(sr_rate)
-                        wf.writeframes((y * 32767).astype(np.int16).tobytes())
-                    with sr.AudioFile(tmp.name) as source:
-                        audio_data = self.recognizer.record(source)
+                file_path = self._save_temp_wav(sr_rate, y)
+                with sr.AudioFile(file_path) as source:
+                    audio_data = self.recognizer.record(source)
 
-            # Выбор движка
             if engine == "Google":
                 return self.recognizer.recognize_google(audio_data, language="ru-RU")
             if engine == "Google Cloud":
@@ -98,6 +167,8 @@ class TextboxWithSTTPro:
         text,
         cursor_pos,
         engine: str,
+        whisper_model_size: str,
+        faster_whisper_model_size: str,
         google_cloud_key: str,
         houndify_client_id: str,
         houndify_client_key: str,
@@ -105,17 +176,15 @@ class TextboxWithSTTPro:
         ibm_password: str,
         ibm_url: str,
     ):
-        """
-        Callback для вставки распознанного текста в позицию курсора.
-        Ожидается вход: [audio_file, text_value, cursor_pos, ...api fields...]
-        Возвращает: (новый текст для textbox, очистка audio_input)
-        """
+        """Вставка распознанного текста в позицию курсора."""
         if audio_file is None:
             return text, gr.update(value=None)
 
         result_text = self.transcribe_audio(
             audio_file,
             engine,
+            whisper_model_size,
+            faster_whisper_model_size,
             google_cloud_key,
             houndify_client_id,
             houndify_client_key,
@@ -133,18 +202,29 @@ class TextboxWithSTTPro:
         return combined, gr.update(value=None)
 
     def render(self, **textbox_kwargs) -> gr.Textbox:
-        """
-        Создаёт компоненты внутри текущего gr.Blocks() контекста и возвращает gr.Textbox.
-        Вызывайте только внутри with gr.Blocks(): ... .
-        """
-        # Панель настроек и аудио
+        """Создаёт UI."""
         with gr.Column():
             with gr.Accordion("🎤 Голосовой ввод", open=False):
                 engine_dropdown = gr.Dropdown(
-                    choices=["Google", "Google Cloud", "Sphinx", "Houndify", "IBM Watson"],
+                    choices=[
+                        "Google", "Google Cloud", "Sphinx", "Houndify", "IBM Watson",
+                        "Whisper", "Faster-Whisper"
+                    ],
                     value="Google",
                     label="Движок распознавания",
                     interactive=True,
+                )
+
+                whisper_model_dropdown = gr.Dropdown(
+                    choices=["tiny", "base", "small", "medium", "large"],
+                    value="base",
+                    label="Whisper модель",
+                )
+
+                faster_whisper_model_dropdown = gr.Dropdown(
+                    choices=["tiny", "base", "small", "medium", "large"],
+                    value="base",
+                    label="Faster-Whisper модель",
                 )
 
                 with gr.Accordion("🔑 Настройки API (для облачных сервисов)", open=False):
@@ -171,15 +251,13 @@ class TextboxWithSTTPro:
 
                 cursor_pos = gr.Number(value=0, visible=False)
 
-        # создаём текстовое поле с уникальным elem_id
         self.textbox = gr.Textbox(
             elem_id=self.elem_id,
             interactive=True,
             show_copy_button=True,
-            **textbox_kwargs,  # <--- сюда можно кидать label, placeholder, lines, value
+            **textbox_kwargs,
         )
 
-        # привязываем событие изменения аудио -> вставка текста
         audio_input.change(
             fn=self.insert_at_cursor,
             inputs=[
@@ -187,6 +265,8 @@ class TextboxWithSTTPro:
                 self.textbox,
                 cursor_pos,
                 engine_dropdown,
+                whisper_model_dropdown,
+                faster_whisper_model_dropdown,
                 google_cloud_key,
                 houndify_client_id,
                 houndify_client_key,
@@ -197,7 +277,6 @@ class TextboxWithSTTPro:
             outputs=[self.textbox, audio_input],
         )
 
-        # JS для получения позиции курсора по уникальному elem_id
         get_cursor_js = f"""
             () => {{
                 const box = document.querySelector("#{self.elem_id} textarea");
@@ -205,7 +284,6 @@ class TextboxWithSTTPro:
             }}
         """
 
-        # привязка JS-колбэков к textbox для обновления cursor_pos
         self.textbox.change(fn=None, inputs=None, outputs=cursor_pos, js=get_cursor_js)
         self.textbox.input(fn=None, inputs=None, outputs=cursor_pos, js=get_cursor_js)
         self.textbox.submit(fn=None, inputs=None, outputs=cursor_pos, js=get_cursor_js)
@@ -220,7 +298,7 @@ if __name__ == "__main__":
     with gr.Blocks() as demo:
         stt = TextboxWithSTTPro(
             label="Системный промпт (роль модели)",
-            placeholder="Например: Ты - опытный политолог. Отвечай профессионально и аргументированно...",
+            placeholder="Например: Ты - опытный политолог...",
             lines=3,
             value="Ты - полезный AI ассистент. Отвечай точно и информативно."
         )

@@ -148,7 +148,7 @@ class NewsSummarizer:
     # ---------- UI ----------
     def create_interface(self):
         with gr.Blocks() as interface:
-            gr.Markdown("## 📰 Автоматический поиск и резюмирование новостей")
+            gr.Markdown("### 📰 Автоматический поиск и резюмирование новостей")
 
             with gr.Row():
                 topic = gr.Textbox(label="Введите тему", value="Война в Украине")
@@ -158,15 +158,18 @@ class NewsSummarizer:
             output = gr.HTML(label="Результаты")
             
             news_dropdown = gr.Dropdown(choices=[], label="Выберите новость для резюмирования")
+            
+            extract_btn = gr.Button("Извлечь текст статьи")
+            extract_output = gr.Textbox(label="Текст статьи", lines=10, show_copy_button=True)  
+
             llm_dropdown = gr.Dropdown(choices=self.get_ollama_models(), label="Выберите LLM (Ollama)", value=None)
             prompt_input = gr.Textbox(label="Промпт для составления резюме", 
                                     value="Составь краткое и понятное резюме новости для видео YouTube.", lines=3)
             
-            extract_btn = gr.Button("Извлечь текст статьи")
-            extract_output = gr.Textbox(label="Текст статьи", lines=10)
+
             
             summarize_btn = gr.Button("Составить резюме")
-            self.summary_output = gr.Textbox(label="Резюме", lines=10, interactive=True)
+            self.summary_output = gr.Textbox(label="Резюме", lines=10, interactive=True, show_copy_button=True)
 
             # ---------- Логика ----------
             def search_and_update_dropdown(query, method, dropdown):

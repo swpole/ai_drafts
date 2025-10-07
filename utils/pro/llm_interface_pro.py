@@ -99,7 +99,7 @@ class LLMInterfacePro:
         first_param = self.default_param_value
         initial_prompt_text = self.prompt_default
 
-        gr.Markdown(f"## 📝 {self.heading}")
+        gr.Markdown(f"### 📝 {self.heading}")
 
         with gr.Row():
             model_dropdown = gr.Dropdown(
@@ -146,7 +146,7 @@ class LLMInterfacePro:
 
         run_button = gr.Button(self.generate_button_text)
 
-        output_box = TextboxWithSTTPro(
+        self.output_box = TextboxWithSTTPro(
             label=self.output_label,
             lines=5
         )
@@ -186,7 +186,7 @@ class LLMInterfacePro:
         run_button.click(
             fn=self.generate,
             inputs=[model_dropdown, prompt_box.textbox, self.input_box.textbox, temperature_slider, top_p_slider],
-            outputs=output_box.textbox
+            outputs=self.output_box.textbox
         )
 
         return 

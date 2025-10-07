@@ -7,6 +7,9 @@ from newspaper import Article
 from bs4 import BeautifulSoup
 from textbox_with_stt_final_pro import TextboxWithSTTPro
 from llm_interface_pro import LLMInterfacePro
+from facebook_tts_gradio_pro import TextToSpeechPro
+
+#python -m pip install feedparser duckduckgo_search newspaper3k bs4 lxml[html_clean]
 
 class NewsSummarizer:
     def __init__(self):
@@ -150,7 +153,7 @@ class NewsSummarizer:
     # ---------- UI ----------
     def create_interface(self):
         with gr.Blocks() as interface:
-            gr.Markdown("## 📰 Автоматический поиск и резюмирование новостей")
+            gr.Markdown("### 📰 Автоматический поиск и резюмирование новостей")
 
             with gr.Row():
                 topic = TextboxWithSTTPro(label="Введите тему", value="Война в Украине")
@@ -166,7 +169,7 @@ class NewsSummarizer:
 
             llm_interface = LLMInterfacePro(
                 title="Интерфейс LLM (Ollama)",
-                heading="Используйте модель Ollama для резюмирования",
+                heading="Резюмирование моделью Ollama",
                 prompt_label="Промпт для модели",
                 input_label="Текст новости",
                 input_placeholder="Здесь будет текст статьи после извлечения...",
@@ -180,6 +183,7 @@ class NewsSummarizer:
             
             gr.HTML("""<div style='height: 2px; background: linear-gradient(90deg, transparent, #666, transparent); margin: 40px 0;'></div>""")
 
+            tts = TextToSpeechPro()
 
             # ---------- Логика ----------
             def search_and_update_dropdown(query, method, dropdown):
@@ -210,6 +214,13 @@ class NewsSummarizer:
             extract_output.textbox.change(fn=lambda x: x,  # Просто передаем значение дальше
                 inputs=extract_output.textbox,
                 outputs=llm_interface.input_box.textbox)
+            
+            llm_interface.output_box.textbox.change(
+                fn=lambda x: x,  # Просто передаем значение дальше
+                inputs=llm_interface.output_box.textbox,
+                outputs=tts.text_input.textbox
+            )
+
         return interface
 
 
