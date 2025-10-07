@@ -121,7 +121,7 @@ class ImageGeneratorSimpleSTT:
         """Создание Gradio интерфейса"""
         
         with gr.Blocks(title="ComfyUI Image Generator (simple with STT)") as interface:
-            gr.Markdown("# ComfyUI Image Generator (simple with STT)")
+            gr.Markdown("# Image Generator (ComfyUI simple with STT)")
             gr.Markdown("Генерация изображений с использованием ComfyUI workflow")
             
             with gr.Row():

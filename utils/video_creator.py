@@ -174,7 +174,7 @@ class VideoCreator:
             return evt.index, track_index
 
         with gr.Blocks() as demo:
-            gr.Markdown("### 🎬 Создатель видео из галереи")
+            gr.Markdown("### 🎬 Video creator")
             
             with gr.Row():
                 with gr.Column(scale=2):

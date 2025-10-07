@@ -13,21 +13,21 @@ class TextIllustrator:
             title_md =f"# 🚀 {text_illustrator}"
             gr.Markdown(title_md)
 
-            illustration_prompt_generator = IllustrationPromptGenerator()
-            prompt_interface, generated_prompt = illustration_prompt_generator.create_interface()
+            self.illustration_prompt_generator = IllustrationPromptGenerator()
+            self.illustration_prompt_generator.create_interface()
             
             gr.HTML("""<div style='height: 2px; background: linear-gradient(90deg, transparent, #666, transparent); margin: 40px 0;'></div>""")
             
             self.image_generator = ImageGeneratorSimpleSTT()        
-            image_interface, allowed_paths, pos_prompt = self.image_generator.create_interface()
-
+            _, self.allowed_paths, pos_prompt = self.image_generator.create_interface()
+            generated_prompt = self.illustration_prompt_generator.scene_prompt_box
             generated_prompt.change(
                 fn=lambda x: x,  # Просто передаем значение дальше
                 inputs=generated_prompt,
                 outputs=pos_prompt
             )
 
-        return interface, allowed_paths
+        return interface, self.allowed_paths
 
 if __name__ == "__main__":
     app = TextIllustrator()

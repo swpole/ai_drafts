@@ -259,17 +259,6 @@ The result should be a list of prompts for illustration generation that can be f
             "Detailed (en)": "en"
         }
         
-        self.llm_interface = LLMInterface(
-            title="Генератор иллюстрационных промптов",
-            heading="Генерация промптов для иллюстраций",
-            prompt_label="📌 Системный промпт",
-            prompt_default=self.base_prompts["Детализированный"].format(style="реализм"),
-            input_label="Исходный текст",
-            input_placeholder="Вставьте сюда длинный текст...",
-            input_value=self.input_text.strip(),
-            generate_button_text="✨ Сгенерировать промпты",
-            output_label="Список промптов для иллюстраций"
-        )
 
     def get_styles_for_prompt_type(self, prompt_type):
         """Получение списка стилей в зависимости от типа промпта"""
@@ -374,11 +363,22 @@ The result should be a list of prompts for illustration generation that can be f
 
     def create_interface(self):
         """Создание и запуск Gradio интерфейса"""
-        models = self.llm_interface.get_models()
 
-        with gr.Blocks(title=self.llm_interface.title) as interface:
-            gr.Markdown(f"### 📝 {self.llm_interface.heading}")
 
+        with gr.Blocks() as interface:
+
+            self.llm_interface = LLMInterface(
+                    title="Генератор иллюстрационных промптов",
+                    heading="Генерация промптов для иллюстраций",
+                    prompt_label="📌 Системный промпт",
+                    prompt_default=self.base_prompts["Детализированный"].format(style="реализм"),
+                    input_label="Исходный текст",
+                    input_placeholder="Вставьте сюда длинный текст...",
+                    input_value=self.input_text.strip(),
+                    generate_button_text="✨ Сгенерировать промпты",
+                    output_label="Список промптов для иллюстраций"
+                )
+            models = self.llm_interface.get_models()
             with gr.Row():
                 model_dropdown = gr.Dropdown(
                     choices=models,
@@ -410,7 +410,7 @@ The result should be a list of prompts for illustration generation that can be f
                     show_copy_button=True
                 )
 
-            input_box = gr.Textbox(
+            self.input_box = gr.Textbox(
                 label=self.llm_interface.input_label,
                 placeholder=self.llm_interface.input_placeholder,
                 value=self.llm_interface.input_value,
@@ -459,7 +459,7 @@ The result should be a list of prompts for illustration generation that can be f
             # При нажатии кнопки Генерировать
             run_button.click(
                 fn=self.run_generation,
-                inputs=[model_dropdown, prompt_type_dropdown, style_dropdown, input_box],
+                inputs=[model_dropdown, prompt_type_dropdown, style_dropdown, self.input_box],
                 outputs=[output_box, scene_dropdown, segments_state, prompt_box]
             )
 
@@ -470,9 +470,9 @@ The result should be a list of prompts for illustration generation that can be f
                 outputs=self.scene_prompt_box
             )
 
-        return interface, self.scene_prompt_box
+        return interface
 
 if __name__ == "__main__":
     generator = IllustrationPromptGenerator()
-    interface, p = generator.create_interface()
+    interface = generator.create_interface()
     interface.launch()

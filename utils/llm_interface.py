@@ -69,7 +69,7 @@ class LLMInterface:
                 lines=1
             )
 
-            input_box = gr.Textbox(
+            self.input_box = gr.Textbox(
                 label=self.input_label,
                 placeholder=self.input_placeholder,
                 value=self.input_value,
@@ -85,7 +85,7 @@ class LLMInterface:
 
             run_button.click(
                 fn=self.generate,
-                inputs=[model_dropdown, prompt_box, input_box],
+                inputs=[model_dropdown, prompt_box, self.input_box],
                 outputs=output_box
             )
 
