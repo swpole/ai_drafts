@@ -1,3 +1,6 @@
+# input - thema
+# output - summary
+
 import gradio as gr
 import feedparser
 import requests
@@ -7,11 +10,10 @@ from newspaper import Article
 from bs4 import BeautifulSoup
 from textbox_with_stt_final_pro import TextboxWithSTTPro
 from llm_interface_pro import LLMInterfacePro
-from facebook_tts_gradio_pro import TextToSpeechPro
 
 #python -m pip install feedparser duckduckgo_search newspaper3k bs4 lxml[html_clean]
 
-class NewsSummarizer:
+class NewsSummarizerPro:
     def __init__(self):
         self.titles_links_global = []
         self.RSS_FEEDS = {
@@ -20,6 +22,7 @@ class NewsSummarizer:
             "CNN": "http://rss.cnn.com/rss/edition.rss",
             "УНИАН": "https://rss.unian.net/site/news_ukr.rss"
         }
+        self.create_interface()
 
     # ---------- Поиск новостей ----------
     def search_duckduckgo(self, query, num=10):
@@ -152,79 +155,71 @@ class NewsSummarizer:
 
     # ---------- UI ----------
     def create_interface(self):
-        with gr.Blocks() as interface:
-            gr.Markdown("### 📰 Автоматический поиск и резюмирование новостей")
 
-            with gr.Row():
-                topic = TextboxWithSTTPro(label="Введите тему", value="Война в Украине")
-                method = gr.Radio(["DuckDuckGo", "NewsAPI", "RSS"], value="DuckDuckGo", label="Метод поиска")
+        gr.Markdown("### 📰 Автоматический поиск и резюмирование новостей")
 
-            search_btn = gr.Button("Поиск")
-            output = gr.HTML(label="Результаты")
-             
-            news_dropdown = gr.Dropdown(choices=[], label="Выберите новость для резюмирования")
+        with gr.Row():
+            topic = TextboxWithSTTPro(label="Введите тему", value="Война в Украине")
+            method = gr.Radio(["DuckDuckGo", "NewsAPI", "RSS"], value="DuckDuckGo", label="Метод поиска")
 
-            extract_btn = gr.Button("Извлечь текст статьи")
-            extract_output = TextboxWithSTTPro(label="Текст статьи", lines=10)
-
-            llm_interface = LLMInterfacePro(
-                title="Интерфейс LLM (Ollama)",
-                heading="Резюмирование моделью Ollama",
-                prompt_label="Промпт для модели",
-                input_label="Текст новости",
-                input_placeholder="Здесь будет текст статьи после извлечения...",
-                input_value="", 
-                generate_button_text="Составить резюме",
-                output_label="Резюме новости",  
-                typical_prompts={"Писатель": "Ты талантливый писатель и рассказчик. Пиши увлекательно, живо и с деталями, чтобы захватить внимание читателя. Составь {param} из приведённого текста."}, 
-                prompt_params={"Писатель": ["краткое резюме", "рассказ", "эссе", "статья", "поэма"]},
-                default_prompt_index=0, default_param_index=0
-                ) 
+        search_btn = gr.Button("Поиск")
+        output = gr.HTML(label="Результаты")
             
-            gr.HTML("""<div style='height: 2px; background: linear-gradient(90deg, transparent, #666, transparent); margin: 40px 0;'></div>""")
+        news_dropdown = gr.Dropdown(choices=[], label="Выберите новость для резюмирования")
 
-            tts = TextToSpeechPro()
+        extract_btn = gr.Button("Извлечь текст статьи")
+        extract_output = TextboxWithSTTPro(label="Текст статьи", lines=10)
 
-            # ---------- Логика ----------
-            def search_and_update_dropdown(query, method, dropdown):
-                html, news_titles = self.format_results(self.search_news(query, method))
-                return html, gr.update(choices=news_titles, value=news_titles[0] if news_titles else None)
+        llm_interface = LLMInterfacePro(
+            title="Интерфейс LLM (Ollama)",
+            heading="Резюмирование моделью Ollama",
+            prompt_label="Промпт для модели",
+            input_label="Текст новости",
+            input_placeholder="Здесь будет текст статьи после извлечения...",
+            input_value="", 
+            generate_button_text="Составить резюме",
+            output_label="Резюме новости",  
+            typical_prompts={"Писатель": "Ты талантливый писатель и рассказчик. Пиши увлекательно, живо и с деталями, чтобы захватить внимание читателя. Составь {param} из приведённого текста."}, 
+            prompt_params={"Писатель": ["краткое резюме", "рассказ", "эссе", "статья", "поэма"]},
+            default_prompt_index=0, default_param_index=0
+            ) 
+        
 
-            search_btn.click(fn=search_and_update_dropdown, 
-                            inputs=[topic.textbox, method, news_dropdown], 
-                            outputs=[output, news_dropdown])
+        # ---------- Логика ----------
+        def search_and_update_dropdown(query, method, dropdown):
+            html, news_titles = self.format_results(self.search_news(query, method))
+            return html, gr.update(choices=news_titles, value=news_titles[0] if news_titles else None)
 
-            def extract_selected(news_choice):
-                if not news_choice or not self.titles_links_global:
-                    return "Выберите новость и модель"
-                link = None
-                for title, lnk in self.titles_links_global:
-                    if title == news_choice:
-                        link = lnk
-                        break
-                if not link:
-                    return "Ссылка для этой новости не найдена"
-                news_text = self.extract_article_text(link)
-                return news_text
+        search_btn.click(fn=search_and_update_dropdown, 
+                        inputs=[topic.textbox, method, news_dropdown], 
+                        outputs=[output, news_dropdown])
 
-            extract_btn.click(fn=extract_selected, 
-                            inputs=[news_dropdown],
-                            outputs=[extract_output.textbox]) 
+        def extract_selected(news_choice):
+            if not news_choice or not self.titles_links_global:
+                return "Выберите новость и модель"
+            link = None
+            for title, lnk in self.titles_links_global:
+                if title == news_choice:
+                    link = lnk
+                    break
+            if not link:
+                return "Ссылка для этой новости не найдена"
+            news_text = self.extract_article_text(link)
+            return news_text
 
-            extract_output.textbox.change(fn=lambda x: x,  # Просто передаем значение дальше
-                inputs=extract_output.textbox,
-                outputs=llm_interface.input_box.textbox)
-            
-            llm_interface.output_box.textbox.change(
-                fn=lambda x: x,  # Просто передаем значение дальше
-                inputs=llm_interface.output_box.textbox,
-                outputs=tts.text_input.textbox
-            )
+        extract_btn.click(fn=extract_selected, 
+                        inputs=[news_dropdown],
+                        outputs=[extract_output.textbox]) 
 
-        return interface
+        extract_output.textbox.change(fn=lambda x: x,  # Просто передаем значение дальше
+            inputs=extract_output.textbox,
+            outputs=llm_interface.input_box.textbox)
+        
 
+        return
 
 if __name__ == "__main__":
-    news_summarizer = NewsSummarizer()
-    interface = news_summarizer.create_interface()
+    with gr.Blocks() as interface:
+        news_summarizer = NewsSummarizerPro()
+
     interface.launch()

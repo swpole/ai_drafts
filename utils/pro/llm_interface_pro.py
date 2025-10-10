@@ -1,3 +1,7 @@
+# llm creates text
+# inpput - text
+# output - text
+
 import gradio as gr
 import ollama
 import subprocess
@@ -15,8 +19,8 @@ class LLMInterfacePro:
         input_value: str = "Hi! How are you?",
         generate_button_text: str = "Label button",
         output_label: str = "Label output",
-        typical_prompts: dict = None,
-        prompt_params: dict = None,
+        typical_prompts: dict = {},
+        prompt_params: dict = {},
         default_prompt_index: int = 0,
         default_param_index: int = 0,
     ):
@@ -77,7 +81,9 @@ class LLMInterfacePro:
             err = f"Ошибка при получении списка моделей: {e} Возможно ollama не запущена."
             return [err]
 
-    def generate(self, model_name, prompt, input_text, temperature, top_p):
+    def generate(self, model_name, prompt, input_text):
+        temperature= self.temperature_slider.value
+        top_p = self.top_p_slider.value
         if not input_text or not input_text.strip():
             return "⚠️ " + self.input_label + " не может быть пустым."
         try:
@@ -122,18 +128,18 @@ class LLMInterfacePro:
                 )
 
             with gr.Row():
-                temperature_slider = gr.Slider(
+                self.temperature_slider = gr.Slider(
                     0.0, 1.0, value=0.7, step=0.1, label="Температура"
                 )
-                top_p_slider = gr.Slider(
+                self.top_p_slider = gr.Slider(
                     0.0, 1.0, value=0.9, step=0.1, label="Top-p"
                 )
 
-        prompt_box = TextboxWithSTTPro(
-            label=self.prompt_label,
-            value=initial_prompt_text,
-            lines=2
-        )
+            prompt_box = TextboxWithSTTPro(
+                label=self.prompt_label,
+                value=initial_prompt_text,
+                lines=2
+            )
 
 
 
@@ -141,14 +147,16 @@ class LLMInterfacePro:
             label=self.input_label,
             placeholder=self.input_placeholder,
             value=self.input_value,
-            lines=5
+            lines=5,
+            max_lines=5
         )
 
         run_button = gr.Button(self.generate_button_text)
 
         self.output_box = TextboxWithSTTPro(
             label=self.output_label,
-            lines=5
+            lines=5,
+            max_lines=5
         )
 
         # функции для синхронизации
@@ -163,7 +171,11 @@ class LLMInterfacePro:
                 template = self.typical_prompts[prompt_choice]
                 if "{param}" in template and param_choice:
                     return template.replace("{param}", param_choice)
-                return template
+                else:
+                    if "{style}" in template and param_choice:
+                        return template.replace("{style}", param_choice)
+                    else:
+                        return template
             return self.prompt_default
 
         # обновление параметров и промптов
@@ -185,7 +197,7 @@ class LLMInterfacePro:
 
         run_button.click(
             fn=self.generate,
-            inputs=[model_dropdown, prompt_box.textbox, self.input_box.textbox, temperature_slider, top_p_slider],
+            inputs=[model_dropdown, prompt_box.textbox, self.input_box.textbox],
             outputs=self.output_box.textbox
         )
 

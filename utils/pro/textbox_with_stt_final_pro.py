@@ -1,4 +1,5 @@
-# textbox_with_stt.py
+# textbox with speech to text
+
 import gradio as gr
 import speech_recognition as sr
 import numpy as np
