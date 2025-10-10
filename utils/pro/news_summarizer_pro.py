@@ -170,7 +170,7 @@ class NewsSummarizerPro:
         extract_btn = gr.Button("Извлечь текст статьи")
         extract_output = TextboxWithSTTPro(label="Текст статьи", lines=10)
 
-        llm_interface = LLMInterfacePro(
+        self.llm_interface = LLMInterfacePro(
             title="Интерфейс LLM (Ollama)",
             heading="Резюмирование моделью Ollama",
             prompt_label="Промпт для модели",
@@ -213,7 +213,7 @@ class NewsSummarizerPro:
 
         extract_output.textbox.change(fn=lambda x: x,  # Просто передаем значение дальше
             inputs=extract_output.textbox,
-            outputs=llm_interface.input_box.textbox)
+            outputs=self.llm_interface.input_box.textbox)
         
 
         return

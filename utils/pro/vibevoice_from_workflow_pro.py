@@ -65,7 +65,14 @@ class VibeVoiceWorkflowPro:
 
         python_dir = os.path.dirname(sys.executable)
         self.allowed_paths = os.path.abspath(os.path.join(python_dir, os.pardir))
+        vibe_models = gr.Dropdown(label="Модель", choices=["VibeVoice-1.5B", "VibeVoice-Large"], value="VibeVoice-1.5B")
+        
+        def update_str(value):
+            self.model_name=value
 
+        vibe_models.change(fn=update_str,
+                           inputs=vibe_models,
+                           outputs=None)
         with gr.Row():
             self.text_input = TextboxWithSTTPro(
                 label="Диалог (текст)",
@@ -91,7 +98,7 @@ class VibeVoiceWorkflowPro:
             quantize_llm_4bit = gr.Checkbox(value=False, label="Quantize LLM 4bit")
 
         generate_btn = gr.Button("🚀 Сгенерировать")
-        output_audio = gr.Audio(label="Сгенерированное аудио", interactive=True, type="filepath")
+        self.output_audio = gr.Audio(label="Сгенерированное аудио", interactive=True, type="filepath")
 
         def generate_fn(text, spk1_file, spk2_file, spk3_file, spk4_file,
                         seed, temperature, top_p,
@@ -120,7 +127,7 @@ class VibeVoiceWorkflowPro:
                     seed, temperature, top_p,
                     cfg_scale, inference_steps,
                     do_sample, force_offload, quantize_llm_4bit],
-            outputs=output_audio
+            outputs=self.output_audio
         )
 
 

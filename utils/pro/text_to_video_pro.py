@@ -6,7 +6,7 @@ from video_creator_pro import VideoCreatorPro
 import gradio as gr
 
 class TextToVideoPro:
-    def __init__(self, text_prompt: str):
+    def __init__(self):
        self.create_interface()
        pass
     
@@ -30,6 +30,6 @@ class TextToVideoPro:
 
 if __name__ == "__main__":
     with gr.Blocks() as iface:
-        t2v = TextToVideoPro("A serene landscape with mountains and a river.")
+        t2v = TextToVideoPro()
 
     iface.launch(allowed_paths=t2v.illustrator.allowed_paths)

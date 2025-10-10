@@ -160,10 +160,10 @@ class TextToSpeechPro:
             
             generate_btn = gr.Button("🎵 Сгенерировать аудио", variant="primary")
             
-            audio_output = gr.Audio(
+            self.audio_output = gr.Audio(
                 label="Сгенерированное аудио",
                 type="filepath",
-                interactive=False
+                interactive=True
             )
             
             #status_output = gr.Textbox(label="Статус генерации", interactive=False)
@@ -178,7 +178,7 @@ class TextToSpeechPro:
         generate_btn.click(
             fn=self.generate_audio,
             inputs=[self.text_input.textbox, model_dropdown],
-            outputs=[audio_output]
+            outputs=[self.audio_output]
         )
         
         # Автозагрузка модели при изменении выбора

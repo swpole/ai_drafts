@@ -729,13 +729,14 @@ Or paste text directly and it will auto-assign speakers.""",
                 )
                 
                 # Complete audio output (non-streaming)
-                complete_audio_output = gr.Audio(
+                self.complete_audio_output = gr.Audio(
                     label="Complete Podcast (Download after generation)",
                     type="numpy",
                     streaming=False,  # Non-streaming mode
                     autoplay=False,
                     show_download_button=True,  # Explicitly show download button
-                    visible=False  # Initially hidden, shown when audio is ready
+                    visible=True,  # Initially hidden, shown when audio is ready
+                    interactive=True
                 )
 
                 with gr.Accordion("Help", open=False):
@@ -834,7 +835,7 @@ Or paste text directly and it will auto-assign speakers.""",
                     generate_btn.click(
                         fn=clear_audio_outputs,
                         inputs=[],
-                        outputs=[audio_output, complete_audio_output],
+                        outputs=[audio_output, self.complete_audio_output],
                         queue=False
                     ).then(  # Immediate UI update to hide Generate, show Stop (non-queued)
                         fn=lambda: (gr.update(visible=False), gr.update(visible=True)),
@@ -844,7 +845,7 @@ Or paste text directly and it will auto-assign speakers.""",
                     ).then(
                         fn=generate_podcast_wrapper,
                         inputs=[num_speakers, self.text_input.textbox] + speaker_selections + [cfg_scale],
-                        outputs=[audio_output, complete_audio_output, log_output, streaming_status, generate_btn, stop_btn],
+                        outputs=[audio_output, self.complete_audio_output, log_output, streaming_status, generate_btn, stop_btn],
                         queue=True  # Enable Gradio's built-in queue
                     )
                     
@@ -858,7 +859,7 @@ Or paste text directly and it will auto-assign speakers.""",
                         # Clear both audio outputs after stopping
                         fn=lambda: (None, None),
                         inputs=[],
-                        outputs=[audio_output, complete_audio_output],
+                        outputs=[audio_output, self.complete_audio_output],
                         queue=False
                     )
                     

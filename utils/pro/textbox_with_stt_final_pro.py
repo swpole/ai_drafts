@@ -22,32 +22,8 @@ class TextboxWithSTTPro:
         self.recognizer = sr.Recognizer()
 
         # Кэш моделей, чтобы не грузить заново
-        self.whisper_models = {}
-        self.faster_whisper_models = {}
-
-        # Автовыбор устройства для Faster-Whisper
-        if torch.cuda.is_available():
-            self.fw_device = "cuda"
-            # пробуем float16, если не получится → fall back на float32
-            try:
-                self.fw_compute_type="float16"
-                self.faster_whisper_model = WhisperModel(
-                    "base", device=self.fw_device, compute_type=self.fw_compute_type
-                )
-                print("[INFO] Faster-Whisper → GPU float16")
-            except ValueError:
-                self.fw_compute_type="float32"
-                self.faster_whisper_model = WhisperModel(
-                    "base", device=self.fw_device, compute_type=self.fw_compute_type
-                )
-                print("[INFO] Faster-Whisper → GPU float32")
-        else:
-            self.fw_device = "cpu"
-            self.fw_compute_type="int8"
-            self.faster_whisper_model = WhisperModel(
-                "base", device=self.fw_device, compute_type=self.fw_compute_type
-            )
-            print("[INFO] Faster-Whisper → CPU int8")
+        #self.whisper_models = {}
+        #self.faster_whisper_models = {}
 
         self.elem_id = f"stt_textbox_{uuid.uuid4().hex[:8]}"
         self.textbox: Optional[gr.Textbox] = None

@@ -2,7 +2,7 @@
 #output - video
 
 import gradio as gr
-from moviepy import *
+from moviepy import * #python -m pip install moviepy
 import tempfile
 import os
 
@@ -200,7 +200,7 @@ class VideoCreatorPro:
                 # Создаем контейнер для параллельных треков
                 audio_tracks_ui = []
                 selected_audios = []
-                audio_uploaders = []
+                self.audio_uploaders = []
                 
                 for i in range(self.num_parallel_tracks):
                     with gr.Group():
@@ -220,7 +220,7 @@ class VideoCreatorPro:
                         
                         with gr.Row():
                             audio_upload = gr.Audio(sources="upload", type="filepath", label=f"Загрузите аудио для трека {i+1}")
-                            audio_uploaders.append(audio_upload)
+                            self.audio_uploaders.append(audio_upload)
                         
                         with gr.Row():
                             btn_audio_before = gr.Button(f"Добавить в трек {i+1} перед текущим")
@@ -237,13 +237,13 @@ class VideoCreatorPro:
                         # Обработчики кнопок для каждого трека
                         btn_audio_before.click(
                             lambda audio_files, upload, sel_idx, track_idx=i: self.insert_audio(track_idx, audio_files, upload, sel_idx, before=True),
-                            inputs=[audio_tracks_ui[i], audio_uploaders[i], selected_audios[i]],
+                            inputs=[audio_tracks_ui[i], self.audio_uploaders[i], selected_audios[i]],
                             outputs=audio_tracks_ui[i]
                         )
 
                         btn_audio_after.click(
                             lambda audio_files, upload, sel_idx, track_idx=i: self.insert_audio(track_idx, audio_files, upload, sel_idx, before=False),
-                            inputs=[audio_tracks_ui[i], audio_uploaders[i], selected_audios[i]],
+                            inputs=[audio_tracks_ui[i], self.audio_uploaders[i], selected_audios[i]],
                             outputs=audio_tracks_ui[i]
                         )
 
