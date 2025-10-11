@@ -121,6 +121,14 @@ class TextToSpeechPro:
                 return None, load_message
         
         audio_path, message = self.generate_speech(text)
+
+        if audio_path==None:
+            self.device="cpu"
+            load_message = self.load_selected_model(model_name)
+            if "Ошибка" in load_message:
+                return None, load_message
+            audio_path, message = self.generate_speech(text)
+
         return audio_path
 
     def cleanup_temp_files(self):

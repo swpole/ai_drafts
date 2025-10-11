@@ -19,6 +19,8 @@ import torchaudio
 from cached_path import cached_path
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+#python -m pip install f5-tts hf_xet
+
 """
 Установил spaces, но тогда пропадает custom
 try:

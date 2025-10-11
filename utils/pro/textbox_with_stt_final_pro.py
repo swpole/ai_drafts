@@ -10,6 +10,8 @@ import torch
 import whisper                       # OpenAI Whisper
 from faster_whisper import WhisperModel  # Faster-Whisper
 from typing import Union, Tuple, Optional
+import gc
+import threading
 
 
 class TextboxWithSTTPro:
@@ -21,9 +23,13 @@ class TextboxWithSTTPro:
     def __init__(self, **textbox_kwargs):
         self.recognizer = sr.Recognizer()
 
-        # Кэш моделей, чтобы не грузить заново
-        #self.whisper_models = {}
-        #self.faster_whisper_models = {}
+        # Кэш моделей будет создаваться только при необходимости
+        self.whisper_models = {}
+        self.faster_whisper_models = {}
+        
+        # Настройки устройств по умолчанию
+        self.fw_device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.fw_compute_type = "float16" if self.fw_device == "cuda" else "int8"
 
         self.elem_id = f"stt_textbox_{uuid.uuid4().hex[:8]}"
         self.textbox: Optional[gr.Textbox] = None
@@ -42,14 +48,14 @@ class TextboxWithSTTPro:
         return tmp.name
     
     def get_whisper_model(self, model_size: str):
-        """Загружает и кэширует openai/whisper модель"""
+        """Загружает и кэширует openai/whisper модель только при необходимости"""
         if model_size not in self.whisper_models:
             print(f"[INFO] Загружаю Whisper ({model_size})...")
             self.whisper_models[model_size] = whisper.load_model(model_size)
         return self.whisper_models[model_size]
 
     def get_faster_whisper_model(self, model_size: str):
-        """Загружает и кэширует faster-whisper модель"""
+        """Загружает и кэширует faster-whisper модель только при необходимости"""
         if model_size not in self.faster_whisper_models:
             print(f"[INFO] Загружаю Faster-Whisper ({model_size}) на {self.fw_device}...")
             try:
@@ -58,7 +64,25 @@ class TextboxWithSTTPro:
                 # fallback если float16 не поддерживается
                 model = WhisperModel(model_size, device=self.fw_device, compute_type="float32")
             self.faster_whisper_models[model_size] = model
-        return self.faster_whisper_models[model_size]    
+        return self.faster_whisper_models[model_size]
+
+    def cleanup_models(self):
+        """Освобождает память от загруженных моделей"""
+        if self.whisper_models:
+            print("[INFO] Очистка моделей Whisper...")
+            self.whisper_models.clear()
+        
+        if self.faster_whisper_models:
+            print("[INFO] Очистка моделей Faster-Whisper...")
+            self.faster_whisper_models.clear()
+        
+        # Принудительный сбор мусора
+        gc.collect()
+        
+        # Очистка памяти GPU если используется CUDA
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            print("[INFO] Память GPU очищена")
 
     def transcribe_audio(
         self,
@@ -73,7 +97,7 @@ class TextboxWithSTTPro:
         ibm_password: str,
         ibm_url: str,
     ) -> str:
-        """Преобразует аудио в текст через выбранный движок."""
+        """Преобразует аудио в текст через выбранный движок с очисткой памяти после использования."""
         if audio is None:
             return "Аудио не предоставлено"
 
@@ -83,6 +107,8 @@ class TextboxWithSTTPro:
                 model = self.get_whisper_model(whisper_model_size)
                 file_path = audio if isinstance(audio, str) else self._save_temp_wav(*audio)
                 result = model.transcribe(file_path, language="ru")
+                # Очищаем модели после использования
+                self.cleanup_models()
                 return result["text"].strip()
 
             # Faster-Whisper
@@ -90,7 +116,10 @@ class TextboxWithSTTPro:
                 model = self.get_faster_whisper_model(faster_whisper_model_size)
                 file_path = audio if isinstance(audio, str) else self._save_temp_wav(*audio)
                 segments, _ = model.transcribe(file_path, language="ru")
-                return " ".join([seg.text for seg in segments]).strip()
+                result_text = " ".join([seg.text for seg in segments]).strip()
+                # Очищаем модели после использования
+                self.cleanup_models()
+                return result_text
 
             # Остальные движки через speech_recognition
             if isinstance(audio, str):
@@ -102,41 +131,66 @@ class TextboxWithSTTPro:
                 with sr.AudioFile(file_path) as source:
                     audio_data = self.recognizer.record(source)
 
+            result_text = ""
+            
             if engine == "Google":
-                return self.recognizer.recognize_google(audio_data, language="ru-RU")
-            if engine == "Google Cloud":
+                result_text = self.recognizer.recognize_google(audio_data, language="ru-RU")
+            elif engine == "Google Cloud":
                 if not google_cloud_key:
-                    return "Укажите Google Cloud JSON ключ"
-                return self.recognizer.recognize_google_cloud(
-                    audio_data, credentials_json=google_cloud_key, language="ru-RU"
-                )
-            if engine == "Sphinx":
-                return self.recognizer.recognize_sphinx(audio_data, language="ru-RU")
-            if engine == "Houndify":
+                    result_text = "Укажите Google Cloud JSON ключ"
+                else:
+                    result_text = self.recognizer.recognize_google_cloud(
+                        audio_data, credentials_json=google_cloud_key, language="ru-RU"
+                    )
+            elif engine == "Sphinx":
+                result_text = self.recognizer.recognize_sphinx(audio_data, language="ru-RU")
+            elif engine == "Houndify":
                 if not houndify_client_id or not houndify_client_key:
-                    return "Укажите Houndify Client ID и Client Key"
-                return self.recognizer.recognize_houndify(
-                    audio_data, client_id=houndify_client_id, client_key=houndify_client_key
-                )
-            if engine == "IBM Watson":
+                    result_text = "Укажите Houndify Client ID и Client Key"
+                else:
+                    result_text = self.recognizer.recognize_houndify(
+                        audio_data, client_id=houndify_client_id, client_key=houndify_client_key
+                    )
+            elif engine == "IBM Watson":
                 if not ibm_username or not ibm_password or not ibm_url:
-                    return "Укажите IBM Watson Username, Password и URL"
-                return self.recognizer.recognize_ibm(
-                    audio_data,
-                    username=ibm_username,
-                    password=ibm_password,
-                    url=ibm_url,
-                    language="ru-RU",
-                )
+                    result_text = "Укажите IBM Watson Username, Password и URL"
+                else:
+                    result_text = self.recognizer.recognize_ibm(
+                        audio_data,
+                        username=ibm_username,
+                        password=ibm_password,
+                        url=ibm_url,
+                        language="ru-RU",
+                    )
+            else:
+                result_text = "Неизвестный движок"
 
-            return "Неизвестный движок"
+            # Для облачных сервисов тоже очищаем память на всякий случай
+            if engine in ["Whisper", "Faster-Whisper"]:
+                self.cleanup_models()
+                
+            return result_text
 
         except sr.UnknownValueError:
+            self.cleanup_models()
             return "Речь не распознана"
         except sr.RequestError as e:
+            self.cleanup_models()
             return f"Ошибка сервиса распознавания: {e}"
         except Exception as e:
+            self.cleanup_models()
             return f"Произошла ошибка: {e}"
+
+    def delayed_cleanup(self, delay_seconds=30):
+        """Очистка памяти через указанное время в отдельном потоке"""
+        def cleanup():
+            import time
+            time.sleep(delay_seconds)
+            self.cleanup_models()
+        
+        cleanup_thread = threading.Thread(target=cleanup)
+        cleanup_thread.daemon = True
+        cleanup_thread.start()
 
     def insert_at_cursor(
         self,
@@ -175,6 +229,9 @@ class TextboxWithSTTPro:
 
         base_text = text or ""
         combined = base_text[:int(cursor_pos)] + result_text + base_text[int(cursor_pos):]
+
+        # Запускаем отложенную очистку памяти
+        self.delayed_cleanup(delay_seconds=10)
 
         return combined, gr.update(value=None)
 
@@ -219,6 +276,9 @@ class TextboxWithSTTPro:
                         placeholder="https://api.us-south.speech-to-text.watson.cloud.ibm.com/instances/xxx",
                     )
 
+                # Кнопка для принудительной очистки памяти
+                cleanup_btn = gr.Button("🧹 Очистить память", size="sm")
+                
                 audio_input = gr.Audio(
                     sources=["microphone", "upload"],
                     type="filepath",
@@ -233,6 +293,13 @@ class TextboxWithSTTPro:
             interactive=True,
             show_copy_button=True,
             **textbox_kwargs,
+        )
+
+        # Обработчик для кнопки очистки памяти
+        cleanup_btn.click(
+            fn=lambda: print("Память очищена вручную") or self.cleanup_models(),
+            inputs=[],
+            outputs=[]
         )
 
         audio_input.change(
