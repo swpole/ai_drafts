@@ -87,7 +87,7 @@ class VideoCreatorOffline:
         return audio_list
 
     def create_video_with_transitions(self, gallery_images, duration_per_image, 
-                                    transition_duration, audio_tracks, output_filename="output_video.mp4"):
+                                    transition_duration, audio_tracks, output_filename="debug/output_video.mp4"):
         """
         Создает видео из изображений с плавными переходами и объединенной звуковой дорожкой.
         """
@@ -190,7 +190,7 @@ class VideoCreatorOffline:
                     btn_delete = gr.Button("Удалить текущий", variant="stop")   
 
                 gr.Markdown("### Изображения")
-                gallery = gr.Gallery(label="Галерея изображений", columns=6, interactive=True)
+                gallery = gr.Gallery(label="Галерея изображений", columns=4, interactive=True)
                 selected_image = gr.State(value=None)
                 
 
@@ -258,7 +258,7 @@ class VideoCreatorOffline:
                 duration_per_image = gr.Slider(minimum=1, maximum=10, value=3, step=0.5, label="Длительность каждого изображения (секунды)")
                 transition_duration = gr.Slider(minimum=0, maximum=2, value=0.5, step=0.1, label="Длительность перехода (секунды)")
                 
-                output_filename = gr.Textbox(value="output_video.mp4", label="Имя выходного файла")
+                output_filename = gr.Textbox(value="debug/output_video.mp4", label="Имя выходного файла")
                 
                 btn_create_video = gr.Button("🎥 Создать видео", variant="primary", size="lg")
                 
@@ -316,7 +316,7 @@ class VideoCreatorOffline:
                     all_audio_tracks.append(audio_paths)
                 
                 # Получаем имя файла из последнего аргумента
-                filename = audio_track_data[-1] if audio_track_data else "output_video.mp4"
+                filename = audio_track_data[-1] if audio_track_data else "debug/output_video.mp4"
                 
                 video_path = self.create_video_with_transitions(gallery_images, duration, transition, all_audio_tracks, filename)
                 return video_path

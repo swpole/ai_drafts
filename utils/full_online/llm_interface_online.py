@@ -96,7 +96,7 @@ class LLMInterfaceOnline:
             return f"Ошибка генерации: {e}"
 
     def build_interface(self):
-        models = ["gemini-2.5-flash",]
+        models = ["gemini-2.5-flash", "gemini-2.5-pro"]
 
         # стартовые значения по индексам
         first_prompt_key = self.default_prompt_key

@@ -172,8 +172,8 @@ class NewsSummarizerOnline:
         extract_output = TextboxWithSTTOnline(label="Текст статьи", lines=10)
 
         self.llm_interface = LLMInterfaceOnline(
-            title="Интерфейс LLM (Ollama)",
-            heading="Резюмирование моделью Ollama",
+            title="Резюмирование",
+            heading="Резюмирование",
             prompt_label="Промпт для модели",
             input_label="Текст новости",
             input_placeholder="Здесь будет текст статьи после извлечения...",

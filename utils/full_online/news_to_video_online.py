@@ -19,7 +19,9 @@ class NewsToVideoPro:
         news_summerizer.llm_interface.output_box.textbox.change(
             fn = lambda x: [x,x,x,x],
             inputs=news_summerizer.llm_interface.output_box.textbox,
-            outputs=[text_to_audio.tts_text_to_speech.text_input.textbox])
+            outputs=[text_to_audio.tts_text_to_speech.text_input.textbox, 
+                     text_to_video.illustrator.illustration_prompt_generator.llm_interface.input_box.textbox,
+                     ])
         
         text_to_audio.tts_text_to_speech.audio_output.change(
             fn=lambda x: x,

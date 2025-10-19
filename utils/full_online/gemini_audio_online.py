@@ -218,7 +218,7 @@ class GeminiAudioOnline:
             ):
                 continue
             if chunk.candidates[0].content.parts[0].inline_data and chunk.candidates[0].content.parts[0].inline_data.data:
-                file_name = f"ENTER_FILE_NAME_{file_index}"
+                file_name = f"debug/audio_{file_index}"
                 file_index += 1
                 inline_data = chunk.candidates[0].content.parts[0].inline_data
                 data_buffer = inline_data.data

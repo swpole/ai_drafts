@@ -1,5 +1,6 @@
 import gradio as gr
 from stressrnn import StressRNN
+#python -m pip install git+https://github.com/Desklop/StressRNN
 from textbox_with_stt_final_online import TextboxWithSTTOnline
 
 class StressPlacementOffline:
@@ -23,7 +24,7 @@ class StressPlacementOffline:
     # Создание Gradio-интерфейса
     def create_interface(self):
     
-        gr.Markdown("# Сервис расстановки ударений в тексте")
+        gr.Markdown("### Сервис расстановки ударений в тексте")
         gr.Markdown("Введите текст в левое поле и нажмите кнопку для расстановки ударений")
         
         with gr.Row():

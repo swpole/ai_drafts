@@ -135,7 +135,7 @@ Response format:
 Твоя задача — превратить длинный текст в серию промптов для генерации изображений.
 
 Правила работы:
-1. Разбей текст на последовательные сегменты, каждый примерно по 4 секунды чтения (≈50–60 слов).
+1. Разбей текст на последовательные сегменты, каждый примерно по 4 секунды чтения (≈10 слов).
 2. Для каждого сегмента:
    - Выведи сам текст сегмента.
    - Составь иллюстрационный промпт, включающий:
@@ -320,13 +320,27 @@ The result should be a list of prompts for illustration generation that can be f
         for i in range(len(self.segments)):
             text_lower = self.segments[i].lower()
             substring_lower = "Illustration Prompt".lower()
-            index = text_lower.find(substring_lower)+len(substring_lower)
+            index = text_lower.find(substring_lower)
             if index != -1:
+                index+=len(substring_lower)
                 splited=self.segments[i][index:]
                 splited=splited.replace("\n", "")
                 splited=splited.replace("*", "")
                 splited=splited.replace(":", "")
                 self.segments[i] = splited
+            else:
+                substring_lower = "Иллюстрационный промпт".lower()
+                index = text_lower.find(substring_lower)
+                if index != -1:
+                    index+=len(substring_lower)
+                    splited=self.segments[i][index:]
+                    splited=splited.replace("\n", "")
+                    splited=splited.replace("*", "")
+                    splited=splited.replace(":", "")
+                    self.segments[i] = splited
+                else:
+                    pass
+
 
         self.scenes=self.titles
 

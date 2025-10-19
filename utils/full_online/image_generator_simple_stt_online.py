@@ -44,7 +44,7 @@ class ImageGeneratorSimpleSTTOnline:
         """Создание Gradio интерфейса"""
         
 
-        gr.Markdown("### Image Generator (ComfyUI simple with STT)")
+        gr.Markdown("### Image Generator (gemini-2.5-flash-image)")
         gr.Markdown("Генерация изображений с использованием ComfyUI workflow")
         
         with gr.Row():
