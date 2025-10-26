@@ -7,9 +7,9 @@ from textbox_with_stt_final_pro import TextboxWithSTTPro
 
 
 class VibeVoiceWorkflowPro:
-    def __init__(self, model_name="VibeVoice-Large"):
+    def __init__(self, model_name="VibeVoice-1.5B"):
         self.model_name = model_name
-        self.tts_node = VibeVoiceTTSNode()
+        #self.tts_node = VibeVoiceTTSNode()
         self.save_node = SaveAudio()
         self.create_interface()
 
@@ -29,8 +29,9 @@ class VibeVoiceWorkflowPro:
         loadaudio_4 = LoadAudio()
         spk4 = loadaudio_4.load(audio=speaker4_file)[0]
 
+        tts_node = VibeVoiceTTSNode()
         # Генерация речи
-        result = self.tts_node.generate_audio(
+        result = tts_node.generate_audio(
             model_name=self.model_name,
             text=text,
             quantize_llm_4bit=quantize_llm_4bit,
@@ -48,7 +49,11 @@ class VibeVoiceWorkflowPro:
             speaker_3_voice=spk3,
             speaker_4_voice=spk4
         )
-
+        tts_node.cpu()
+        del tts_node
+        tts_node=0
+        import torch
+        torch.cuda.empty_cache()
         # Сохранение результата
         out_path = self.save_node.save_flac(
             filename_prefix="audio/VibeVoice",
