@@ -11,6 +11,8 @@ from newspaper import Article
 from bs4 import BeautifulSoup
 from textbox_with_stt_final_online import TextboxWithSTTOnline
 from llm_interface_online import LLMInterfaceOnline
+from google import genai
+from google.genai import types
 
 #python -m pip install feedparser duckduckgo_search newspaper3k bs4 lxml[html_clean]
 
@@ -63,6 +65,36 @@ class NewsSummarizerOnline:
                     "date": entry.get("published", "")
                 })
         return results
+    
+    def search_gemini(self, query: str, num: int = 10):
+
+        client = genai.Client()
+        grounding_tool = types.Tool(
+            google_search=types.GoogleSearch()
+        )
+        config = types.GenerateContentConfig(
+            tools=[grounding_tool]
+        )
+
+        results = []
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=query,
+            config=config,
+        )
+
+        # Gemini возвращает grounding-подсказки в response.candidates[0].grounding_metadata
+        if hasattr(response, "candidates"):
+            for candidate in response.candidates:
+                for site in candidate.grounding_metadata.grounding_chunks:
+                    site.web.uri
+                    results.append({
+                        "title": site.web.title,
+                        "link": site.web.uri,
+                        "source": getattr(site, "source", None),
+                        "date": getattr(site, "date", None),
+                    })
+        return results
 
     def search_news(self, query, method):
         if method == "DuckDuckGo":
@@ -71,6 +103,8 @@ class NewsSummarizerOnline:
             return self.search_newsapi(query)
         elif method == "RSS":
             return self.search_rss()
+        elif method == "Gemini search":
+            return self.search_gemini(query)
         else:
             return [{"title": "Ошибка: неизвестный метод", "link": "", "source": "", "date": ""}]
 
@@ -161,7 +195,7 @@ class NewsSummarizerOnline:
 
         with gr.Row():
             topic = TextboxWithSTTOnline(label="Введите тему", value="Война в Украине")
-            method = gr.Radio(["DuckDuckGo", "NewsAPI", "RSS"], value="DuckDuckGo", label="Метод поиска")
+            method = gr.Radio(["Gemini search", "DuckDuckGo", "NewsAPI", "RSS"], value="Gemini search", label="Метод поиска")
 
         search_btn = gr.Button("Поиск")
         output = gr.HTML(label="Результаты")
