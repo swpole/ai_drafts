@@ -47,7 +47,7 @@ class VibeVoiceDemoPro:
         self.is_generating = False  # Track generation state
         self.stop_generation = False  # Flag to stop generation
         self.current_streamer = None  # Track current audio streamer
-        self.load_model(self.model_path)
+        #self.load_model(self.model_path)
         self.setup_voice_presets()
         self.load_example_scripts()  # Load example scripts
         self.create_demo_interface()
@@ -778,6 +778,7 @@ Or paste text directly and it will auto-assign speakers.""",
                     # Main generation function with streaming
                     def generate_podcast_wrapper(num_speakers, script, *speakers_and_params):
                         """Wrapper function to handle the streaming generation call."""
+                        self.load_model(self.model_path)
                         try:
                             # Extract speakers and parameters
                             speakers = speakers_and_params[:4]  # First 4 are speaker selections

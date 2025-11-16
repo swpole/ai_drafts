@@ -5,6 +5,7 @@
 import gradio as gr
 import ollama
 import subprocess
+import gc
 from textbox_with_stt_final_pro import TextboxWithSTTPro
 
 class LLMInterfacePro:
@@ -32,6 +33,9 @@ class LLMInterfacePro:
         self.input_value = input_value
         self.generate_button_text = generate_button_text
         self.output_label = output_label
+        
+        # Словарь для отслеживания загруженных моделей
+        self.loaded_models = {}
 
         # --- дефолтные промпты и параметры ---
         self.typical_prompts = {
@@ -81,11 +85,70 @@ class LLMInterfacePro:
             err = f"Ошибка при получении списка моделей: {e} Возможно ollama не запущена."
             return [err]
 
+    def load_model(self, model_name):
+        """Загружает модель, если она еще не загружена"""
+        try:
+            if model_name not in self.loaded_models:
+                print(f"🔄 Загружаем модель: {model_name}")
+                # Проверяем, существует ли модель
+                models_info = ollama.list()
+                available_models = [m["model"] for m in models_info["models"]]
+                
+                if model_name not in available_models:
+                    return f"❌ Модель {model_name} не найдена. Доступные модели: {', '.join(available_models)}"
+                
+                # Загружаем модель
+                ollama.chat(model=model_name, messages=[{"role": "user", "content": "ping"}])
+                self.loaded_models[model_name] = True
+                print(f"✅ Модель {model_name} загружена")
+            return None  # Успешная загрузка
+        except Exception as e:
+            return f"❌ Ошибка загрузки модели {model_name}: {e}"
+
+    def unload_model(self, model_name):
+        """Выгружает модель из памяти"""
+        try:
+            print(f"🗑️ Выгружаем модель: {model_name}")
+            # Используем Ollama API для выгрузки модели
+            subprocess.run(["ollama", f"list"])
+            subprocess.run(["ollama", f"stop", f"{model_name}"])
+            
+            del self.loaded_models[model_name]
+            
+            # Принудительный сбор мусора
+            gc.collect()
+            print(f"✅ Модель {model_name} выгружена")
+        except Exception as e:
+            print(f"⚠️ Ошибка при выгрузке модели {model_name}: {e}")
+
+    def unload_all_models(self):
+        """Выгружает все загруженные модели"""
+        result = subprocess.run(['ollama', 'ps'], capture_output=True, text=True, check=True)
+        output = result.stdout
+        lines = output.strip().split('\n')
+        running_models = []
+        # Пропускаем заголовок и обрабатываем остальные строки
+        for line in lines[1:]:  # пропускаем первую строку с заголовками
+            if line.strip():  # проверяем, что строка не пустая
+                # Разделяем по пробелам и берем первый элемент (имя модели)
+                model_name = line.split()[0]  # берем первый столбец - имя модели
+                running_models.append(model_name)
+
+        for model_name in running_models:
+            self.unload_model(model_name)
+
     def generate(self, model_name, prompt, input_text):
-        temperature= self.temperature_slider.value
+        temperature = self.temperature_slider.value
         top_p = self.top_p_slider.value
+        
         if not input_text or not input_text.strip():
             return "⚠️ " + self.input_label + " не может быть пустым."
+        
+        # Загружаем модель перед генерацией
+        load_error = self.load_model(model_name)
+        if load_error:
+            return load_error
+        
         try:
             full_prompt = f"{prompt}\n\n{self.input_label}:\n{input_text}"
             response = ollama.chat(
@@ -93,9 +156,22 @@ class LLMInterfacePro:
                 options={"temperature": temperature, "top_p": top_p},
                 messages=[{"role": "user", "content": full_prompt}]
             )
+            
+            # Автоматически выгружаем модель после использования (опционально)
+            self.unload_model(model_name)
+            
             return response["message"]["content"]
+            
         except Exception as e:
+            # В случае ошибки также пытаемся выгрузить модель
+            self.unload_model(model_name)
             return f"Ошибка генерации: {e}"
+
+    def on_model_change(self, model_name):
+        """Обработчик изменения модели - выгружает предыдущую модель"""
+        # Можно добавить логику для выгрузки предыдущей модели
+        # если нужно поддерживать только одну модель в памяти
+        pass
 
     def build_interface(self):
         models = self.get_models()
@@ -112,6 +188,20 @@ class LLMInterfacePro:
                 choices=models,
                 value=models[0] if models else None,
                 label="Выберите модель"
+            )
+
+        # Добавляем кнопки для управления памятью
+        with gr.Accordion("🧠 Управление памятью", open=False):
+            with gr.Row():
+                load_model_btn = gr.Button("🔄 Загрузить выбранную модель")
+                unload_model_btn = gr.Button("🗑️ Выгрузить выбранную модель")
+                unload_all_btn = gr.Button("🧹 Выгрузить все модели")
+                memory_status_btn = gr.Button("📊 Статус памяти")
+            
+            memory_status = gr.Textbox(
+                label="Статус памяти",
+                interactive=False,
+                lines=2
             )
 
         with gr.Accordion("⚙️ Настройки промптов и модели", open=False):
@@ -140,8 +230,6 @@ class LLMInterfacePro:
                 value=initial_prompt_text,
                 lines=2
             )
-
-
 
         self.input_box = TextboxWithSTTPro(
             label=self.input_label,
@@ -178,6 +266,25 @@ class LLMInterfacePro:
                         return template
             return self.prompt_default
 
+        # Функции для управления памятью
+        def load_selected_model(model_name):
+            result = self.load_model(model_name)
+            return result if result else f"✅ Модель {model_name} загружена"
+
+        def unload_selected_model(model_name):
+            self.unload_model(model_name)
+            return f"✅ Модель {model_name} выгружена"
+
+        def unload_all_models_wrapper():
+            self.unload_all_models()
+            return "✅ Все модели выгружены из памяти"
+
+        def get_memory_status():
+            loaded_count = len(self.loaded_models)
+            status = f"📊 Загружено моделей: {loaded_count}\n"
+            status += f"🧠 Модели в памяти: {', '.join(self.loaded_models.keys()) if self.loaded_models else 'нет'}"
+            return status
+
         # обновление параметров и промптов
         typical_prompt_dd.change(
             fn=update_params,
@@ -195,24 +302,54 @@ class LLMInterfacePro:
             outputs=prompt_box.textbox
         )
 
+        # Обработчики для управления памятью
+        load_model_btn.click(
+            fn=load_selected_model,
+            inputs=model_dropdown,
+            outputs=memory_status
+        )
+        
+        unload_model_btn.click(
+            fn=unload_selected_model,
+            inputs=model_dropdown,
+            outputs=memory_status
+        )
+        
+        unload_all_btn.click(
+            fn=unload_all_models_wrapper,
+            outputs=memory_status
+        )
+        
+        memory_status_btn.click(
+            fn=get_memory_status,
+            outputs=memory_status
+        )
+
         run_button.click(
             fn=self.generate,
             inputs=[model_dropdown, prompt_box.textbox, self.input_box.textbox],
             outputs=self.output_box.textbox
         )
 
-        return 
+        # Обработчик изменения модели
+        model_dropdown.change(
+            fn=self.on_model_change,
+            inputs=model_dropdown
+        )
 
 
 if __name__ == "__main__":
     # пример: берем 2-й промпт ("Учитель") и 2-й параметр ("физика")
     with gr.Blocks() as demo:
-        summarizer = LLMInterfacePro(typical_prompts={
-            "Писатель": "Ты талантливый писатель и рассказчик. Пиши увлекательно, живо и с деталями, чтобы захватить внимание читателя. Составь {param} из приведённого текста.",
-        }, 
-        prompt_params={
-            "Писатель": ["краткое резюме", "рассказ", "эссе", "статья", "поэма"],
-        },
-        default_prompt_index=0, default_param_index=0)
+        summarizer = LLMInterfacePro(
+            typical_prompts={
+                "Писатель": "Ты талантливый писатель и рассказчик. Пиши увлекательно, живо и с деталями, чтобы захватить внимание читателя. Составь {param} из приведённого текста.",
+            }, 
+            prompt_params={
+                "Писатель": ["краткое резюме", "рассказ", "эссе", "статья", "поэма"],
+            },
+            default_prompt_index=0, 
+            default_param_index=0
+        )
         
     demo.launch()

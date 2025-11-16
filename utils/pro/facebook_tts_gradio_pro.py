@@ -10,6 +10,7 @@ import logging
 import gradio as gr
 import os
 import tempfile
+import gc
 from textbox_with_stt_final_pro import TextboxWithSTTPro
 
 class TextToSpeechPro:
@@ -28,6 +29,7 @@ class TextToSpeechPro:
         self.model = None
         self.tokenizer = None
         self.is_loaded = False
+        self.current_model_id = None
 
         # Список доступных моделей
         self.AVAILABLE_MODELS = {
@@ -52,16 +54,46 @@ class TextToSpeechPro:
     def load_model(self, model_name: str):
         """Загрузка модели и токенизатора"""
         try:
+            # Освобождаем память от предыдущей модели, если она загружена
+            self.unload_model()
+            
             self.logger.info(f"Загрузка модели {model_name} на устройство {self.device}")
             self.model = VitsModel.from_pretrained(model_name).to(self.device)
             self.tokenizer = AutoTokenizer.from_pretrained(model_name)
             self.model_name = model_name
+            self.current_model_id = model_name
             self.is_loaded = True
             self.logger.info("Модель успешно загружена")
             return f"Модель {model_name} загружена успешно!"
         except Exception as e:
             self.logger.error(f"Ошибка при загрузке модели: {e}")
             return f"Ошибка загрузки модели: {e}"
+    
+    def unload_model(self):
+        """Выгрузка модели и освобождение памяти"""
+        if self.model is not None:
+            self.logger.info("Выгрузка модели и освобождение памяти...")
+            
+            # Перемещаем модель на CPU перед удалением
+            if hasattr(self.model, 'to'):
+                self.model.to('cpu')
+            
+            # Удаляем модель и токенизатор
+            del self.model
+            del self.tokenizer
+            
+            # Принудительно запускаем сборщик мусора
+            gc.collect()
+            
+            # Если используется CUDA, очищаем кеш видеопамяти
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            
+            self.model = None
+            self.tokenizer = None
+            self.is_loaded = False
+            self.current_model_id = None
+            self.logger.info("Модель выгружена и память освобождена")
     
     def generate_speech(self, 
                        text: str,
@@ -97,6 +129,11 @@ class TextToSpeechPro:
             sr = sampling_rate if sampling_rate else self.model.config.sampling_rate
             wavfile.write(temp_path, sr, audio)
             
+            # Освобождаем память от промежуточных тензоров
+            del inputs, output, audio
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            
             return temp_path, "Аудио успешно сгенерировано!"
             
         except Exception as e:
@@ -106,30 +143,56 @@ class TextToSpeechPro:
     def load_selected_model(self, model_name):
         """Загрузка выбранной модели"""
         model_id = self.AVAILABLE_MODELS[model_name]
+        
+        # Если модель уже загружена, не перезагружаем
+        if self.is_loaded and self.current_model_id == model_id:
+            return f"Модель {model_id} уже загружена!"
+        
         message = self.load_model(model_id)
         return message
 
     def generate_audio(self, text, model_name):
-        """Генерация аудио из текста"""
+        """Генерация аудио из текста с автоматической загрузкой/выгрузкой моделей"""
         if not text.strip():
             return None, "Введите текст для преобразования"
         
+        target_model_id = self.AVAILABLE_MODELS[model_name]
+        
         # Если модель не загружена или выбрана другая, загружаем её
-        if not self.is_loaded or self.AVAILABLE_MODELS[model_name] != self.model_name:
+        if not self.is_loaded or self.current_model_id != target_model_id:
             load_message = self.load_selected_model(model_name)
             if "Ошибка" in load_message:
                 return None, load_message
         
-        audio_path, message = self.generate_speech(text)
-
-        if audio_path==None:
-            self.device="cpu"
-            load_message = self.load_selected_model(model_name)
-            if "Ошибка" in load_message:
-                return None, load_message
+        try:
             audio_path, message = self.generate_speech(text)
-
-        return audio_path
+            
+            # Автоматическая выгрузка модели после генерации (опционально)
+            # Раскомментируйте следующую строку, если хотите выгружать модель сразу после использования
+            # self.unload_model()
+            
+            return audio_path
+        except RuntimeError as e:
+            # Если ошибка связана с памятью, пробуем на CPU
+            if "CUDA out of memory" in str(e):
+                self.logger.warning("Недостаточно памяти на GPU, пробуем на CPU...")
+                self.unload_model()
+                original_device = self.device
+                self.device = 'cpu'
+                
+                try:
+                    load_message = self.load_selected_model(model_name)
+                    if "Ошибка" in load_message:
+                        return None, load_message
+                    
+                    audio_path, message = self.generate_speech(text)
+                    self.device = original_device  # Возвращаем оригинальное устройство
+                    return audio_path
+                except Exception as e2:
+                    self.device = original_device
+                    return None, f"Ошибка генерации на CPU: {e2}"
+            else:
+                return None, f"Ошибка генерации: {e}"
 
     def cleanup_temp_files(self):
         """Очистка временных файлов при завершении"""
@@ -144,7 +207,6 @@ class TextToSpeechPro:
     def render(self):            
         # Создание Gradio интерфейса
         gr.Markdown("### 🎵 Text to Speech Converter")
-        #gr.Markdown("Преобразуйте текст в естественную речь с помощью AI моделей")
         
         with gr.Accordion(label="Модель", open=False):
             with gr.Column(scale=1):
@@ -156,6 +218,7 @@ class TextToSpeechPro:
                 )
                 
                 load_btn = gr.Button("🔄 Загрузить модель", variant="primary")
+                unload_btn = gr.Button("🗑️ Выгрузить модель", variant="secondary")
                 load_status = gr.Textbox(label="Статус модели", interactive=False)
         
         with gr.Column(scale=2):
@@ -173,13 +236,17 @@ class TextToSpeechPro:
                 type="filepath",
                 interactive=True
             )
-            
-            #status_output = gr.Textbox(label="Статус генерации", interactive=False)
         
         # Обработчики событий
         load_btn.click(
             fn=self.load_selected_model,
             inputs=model_dropdown,
+            outputs=load_status
+        )
+        
+        unload_btn.click(
+            fn=self.unload_model,
+            inputs=[],
             outputs=load_status
         )
         
@@ -241,7 +308,7 @@ class TextToSpeechPro:
 # Запуск приложения
 if __name__ == "__main__":
     with gr.Blocks(title="Text to Speech Converter", theme=gr.themes.Soft()) as demo:
-        tts=TextToSpeechPro()
+        tts = TextToSpeechPro()
     
     # Запуск интерфейса
     demo.launch(
@@ -254,3 +321,4 @@ if __name__ == "__main__":
     # Очистка при завершении
     import atexit
     atexit.register(tts.cleanup_temp_files)
+    atexit.register(tts.unload_model)  # Выгружаем модель при завершении
