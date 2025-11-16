@@ -12,6 +12,7 @@ from faster_whisper import WhisperModel  # Faster-Whisper
 from typing import Union, Tuple, Optional
 import gc
 import threading
+from nginx_manager_pro import NginxManagerPro
 
 
 class TextboxWithSTTPro:
@@ -339,6 +340,8 @@ class TextboxWithSTTPro:
 
 
 if __name__ == "__main__":
+    nginx = NginxManagerPro(base_path="C:/")
+    nginx.install_and_start()
     with gr.Blocks() as demo:
         stt = TextboxWithSTTPro(
             label="Системный промпт (роль модели)",
